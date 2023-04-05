@@ -1,17 +1,39 @@
 from torch import nn
 
-class DBLBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, num_dbl=1, **kwargs):
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, hidden, num_dbl=1):
         super().__init__()
         self.layers = nn.ModuleList()
-        for dbl in range(num_dbl):
-            self.layers += [nn.Sequential(nn.Conv2d(in_channels, out_channels, **kwargs),
-                            nn.BatchNorm2d(out_channels),
-                            nn.SiLU())]
+        self.layers += [nn.Sequential(nn.Conv2d(in_channels, hidden // 2, kernel_size=1),
+                                      nn.BatchNorm2d(hidden // 2),
+                                      nn.SiLU()),
+                        nn.Sequential(nn.Conv2d(hidden // 2, hidden, kernel_size=3, padding=1),
+                                      nn.BatchNorm2d(hidden),
+                                      nn.SiLU())]
+
+        for dbl in range(num_dbl - 1):
+            self.layers += [nn.Sequential(nn.Conv2d(hidden, hidden // 2, kernel_size=1),
+                                          nn.BatchNorm2d(hidden // 2),
+                                          nn.SiLU()),
+                            nn.Sequential(nn.Conv2d(hidden // 2, hidden, kernel_size=3, padding=1),
+                                          nn.BatchNorm2d(hidden),
+                                          nn.SiLU())]
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
+        return x
+
+class DBLBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, **kwargs):
+        super().__init__()
+
+        self.dbl = nn.Sequential(nn.Conv2d(in_channels, out_channels, **kwargs),
+                                 nn.BatchNorm2d(out_channels),
+                                 nn.SiLU())
+
+    def forward(self, x):
+        x = self.dbl(x)
         return x
 
 
@@ -46,7 +68,7 @@ class ScalePrediction(nn.Module):
         self.pred = nn.Sequential(
             DBLBlock(in_channels, 2 * in_channels, kernel_size=3, padding=1),
             DBLBlock(
-                2 * in_channels, (num_classes + 5) * 3, bn_act=False, kernel_size=1
+                2 * in_channels, (num_classes + 5) * 3, kernel_size=1
             ),
         )
         self.num_classes = num_classes
