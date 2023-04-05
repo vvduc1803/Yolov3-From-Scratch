@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+@author: Van Duc <vvduc03@gmail.com>
+"""
+"""Import necessary packages"""
 from torch import nn
 
 class ConvBlock(nn.Module):
